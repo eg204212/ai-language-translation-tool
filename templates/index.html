@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Language Translation Tool</title>
+</head>
+<body>
+
+<h2>Language Translation Tool</h2>
+
+<form method="POST">
+    <textarea name="text" rows="5" cols="50" placeholder="Enter text"></textarea>
+    <br><br>
+
+    <label>From:</label>
+    <select name="source">
+        <option value="en">English</option>
+        <option value="si">Sinhala</option>
+        <option value="ta">Tamil</option>
+        <option value="fr">French</option>
+    </select>
+
+    <label>To:</label>
+    <select name="target">
+        <option value="si">Sinhala</option>
+        <option value="en">English</option>
+        <option value="ta">Tamil</option>
+        <option value="fr">French</option>
+    </select>
+
+    <br><br>
+    <button type="submit">Translate</button>
+</form>
+
+{% if translated_text %}
+    <h3>Translated Text:</h3>
+    <p>{{ translated_text }}</p>
+
+    <audio controls>
+        <source src="{{ url_for('static', filename='output.mp3') }}" type="audio/mpeg">
+        Your browser does not support audio.
+    </audio>
+{% endif %}
+
+</body>
+</html>
