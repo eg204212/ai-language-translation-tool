@@ -2,44 +2,84 @@
 <html>
 <head>
     <title>Language Translation Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
+<div class="container mt-5">
+    <h2 class="text-center mb-4">Language Translation Tool</h2>
 
-<h2>Language Translation Tool</h2>
+    <form method="POST" class="mb-4">
+        <textarea class="form-control" name="text" rows="5" placeholder="Enter text" required></textarea>
 
-<form method="POST">
-    <textarea name="text" rows="5" cols="50" placeholder="Enter text"></textarea>
-    <br><br>
+        <div class="row mt-3">
+            <div class="col">
+                <label>To:</label>
+                <select class="form-select" name="target">
+                    <option value="en">English</option>
+                    <option value="si">Sinhala</option>
+                    <option value="ta">Tamil</option>
+                    <option value="fr">French</option>
+                </select>
+            </div>
+        </div>
 
-    <label>From:</label>
-    <select name="source">
-        <option value="en">English</option>
-        <option value="si">Sinhala</option>
-        <option value="ta">Tamil</option>
-        <option value="fr">French</option>
-    </select>
+        <button class="btn btn-primary mt-3">Translate</button>
+    </form>
 
-    <label>To:</label>
-    <select name="target">
-        <option value="si">Sinhala</option>
-        <option value="en">English</option>
-        <option value="ta">Tamil</option>
-        <option value="fr">French</option>
-    </select>
+    {% if translated_text %}
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Translation</h5>
+            <p><strong>Detected Source:</strong> {{ source_lang }}</p>
+            <p><strong>Target:</strong> {{ target_lang }}</p>
+            <p><strong>Text:</strong> {{ translated_text }}</p>
+            <p><strong>Word Count:</strong> {{ word_count }} | <strong>Character Count:</strong> {{ char_count }}</p>
 
-    <br><br>
-    <button type="submit">Translate</button>
-</form>
+            <audio controls>
+                <source src="{{ url_for('static', filename=audio_file) }}" type="audio/mpeg">
+                Your browser does not support audio.
+            </audio>
 
-{% if translated_text %}
-    <h3>Translated Text:</h3>
-    <p>{{ translated_text }}</p>
+            <button class="btn btn-success mt-2" onclick="copyText()">Copy Translation</button>
+        </div>
+    </div>
+    {% endif %}
 
-    <audio controls>
-        <source src="{{ url_for('static', filename='output.mp3') }}" type="audio/mpeg">
-        Your browser does not support audio.
-    </audio>
-{% endif %}
+    {% if history %}
+    <h4>Translation History</h4>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Input</th>
+                <th>Source</th>
+                <th>Target</th>
+                <th>Output</th>
+                <th>Words</th>
+                <th>Chars</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in history %}
+            <tr>
+                <td>{{ item.input }}</td>
+                <td>{{ item.source }}</td>
+                <td>{{ item.target }}</td>
+                <td>{{ item.output }}</td>
+                <td>{{ item.words }}</td>
+                <td>{{ item.chars }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<script>
+function copyText() {
+    const text = document.querySelector('.card-body p:nth-child(3)').innerText;
+    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
+}
+</script>
 
 </body>
 </html>
