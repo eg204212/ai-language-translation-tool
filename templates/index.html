@@ -1,85 +1,557 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Language Translation Tool</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Language Translation Tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="container mt-5">
-    <h2 class="text-center mb-4">Language Translation Tool</h2>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🌐</div>
+                <div class="logo-text">
+                    <h1>TransLingo Pro</h1>
+                    <p>Advanced Translation Platform</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <!-- Connectivity Status -->
+                <div class="connectivity-status" id="connectivityStatus">
+                    {% if connectivity.status == 'online' %}
+                    <span class="status-indicator status-online" title="Service Online">🟢 Online</span>
+                    {% elif connectivity.status == 'limited' %}
+                    <span class="status-indicator status-limited" title="Limited Connectivity">🟡 Limited</span>
+                    {% else %}
+                    <span class="status-indicator status-offline" title="Offline">🔴 Offline</span>
+                    {% endif %}
+                </div>
+                <button class="theme-toggle" onclick="toggleTheme()">
+                    <span id="theme-icon">🌙</span>
+                    <span id="theme-text">Dark Mode</span>
+                </button>
+            </div>
+        </div>
+    </header>
 
-    <form method="POST" class="mb-4">
-        <textarea class="form-control" name="text" rows="5" placeholder="Enter text" required></textarea>
-
-        <div class="row mt-3">
-            <div class="col">
-                <label>To:</label>
-                <select class="form-select" name="target">
-                    <option value="en">English</option>
-                    <option value="si">Sinhala</option>
-                    <option value="ta">Tamil</option>
-                    <option value="fr">French</option>
-                </select>
+    <div class="container">
+        <!-- Session Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ session_stats.translations }}</div>
+                <div class="stat-label">Session Translations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ session_stats.words_translated }}</div>
+                <div class="stat-label">Words Translated</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ total_translations }}</div>
+                <div class="stat-label">Total Translations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ cache_size }}</div>
+                <div class="stat-label">Cached Translations</div>
             </div>
         </div>
 
-        <button class="btn btn-primary mt-3">Translate</button>
-    </form>
-
-    {% if translated_text %}
-    <div class="card mb-4">
-        <div class="card-body">
-            <h5 class="card-title">Translation</h5>
-            <p><strong>Detected Source:</strong> {{ source_lang }}</p>
-            <p><strong>Target:</strong> {{ target_lang }}</p>
-            <p><strong>Text:</strong> {{ translated_text }}</p>
-            <p><strong>Word Count:</strong> {{ word_count }} | <strong>Character Count:</strong> {{ char_count }}</p>
-
-            <audio controls>
-                <source src="{{ url_for('static', filename=audio_file) }}" type="audio/mpeg">
-                Your browser does not support audio.
-            </audio>
-
-            <button class="btn btn-success mt-2" onclick="copyText()">Copy Translation</button>
+        <!-- Error Message -->
+        {% if error_message %}
+        <div class="alert alert-danger fade-in">
+            <span style="font-size: 1.5rem;">⚠️</span>
+            <div style="flex: 1;">
+                <strong>Error:</strong> {{ error_message }}
+                <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                    <button class="btn btn-outline" onclick="checkConnectivity()" style="padding: 0.5rem 1rem; margin-top: 0.5rem;">
+                        🔄 Check Connection
+                    </button>
+                </div>
+            </div>
         </div>
+        {% endif %}
+
+        <!-- Main Translation Card -->
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">✍️</span>
+                    <span>Translate Text</span>
+                </div>
+                {% if cache_hit %}
+                <span class="badge badge-success">⚡ Cached Result</span>
+                {% endif %}
+            </div>
+
+            <form method="POST" id="translationForm">
+                <div class="form-group">
+                    <label class="form-label">Enter Text to Translate</label>
+                    <textarea 
+                        class="form-control" 
+                        name="text" 
+                        id="inputText"
+                        rows="6" 
+                        placeholder="Type or paste your text here..." 
+                        required
+                        oninput="updateCharCount()"></textarea>
+                    <div class="translation-meta" style="margin-top: 0.5rem;">
+                        <div class="meta-item">
+                            <span>📝</span>
+                            <span id="charCounter">0 / 5000 characters</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Target Language</label>
+                        <select class="form-control form-select" name="target" required>
+                            <option value="en">🇬🇧 English</option>
+                            <option value="si">🇱🇰 Sinhala</option>
+                            <option value="ta">🇮🇳 Tamil</option>
+                            <option value="fr">🇫🇷 French</option>
+                            <option value="es">🇪🇸 Spanish</option>
+                            <option value="de">🇩🇪 German</option>
+                            <option value="it">🇮🇹 Italian</option>
+                            <option value="pt">🇵🇹 Portuguese</option>
+                            <option value="ja">🇯🇵 Japanese</option>
+                            <option value="ko">🇰🇷 Korean</option>
+                            <option value="zh">🇨🇳 Chinese</option>
+                            <option value="ar">🇸🇦 Arabic</option>
+                            <option value="hi">🇮🇳 Hindi</option>
+                            <option value="ru">🇷🇺 Russian</option>
+                            <option value="nl">🇳🇱 Dutch</option>
+                            <option value="pl">🇵🇱 Polish</option>
+                            <option value="tr">🇹🇷 Turkish</option>
+                            <option value="vi">🇻🇳 Vietnamese</option>
+                            <option value="th">🇹🇭 Thai</option>
+                            <option value="id">🇮🇩 Indonesian</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">
+                        <span>🚀</span>
+                        <span>Translate Now</span>
+                    </button>
+                    <button type="button" class="btn btn-outline" onclick="clearForm()">
+                        <span>🔄</span>
+                        <span>Clear</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Translation Result -->
+        {% if translated_text %}
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">✨</span>
+                    <span>Translation Result</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="copyTranslation()">
+                        <span>📋</span>
+                        <span>Copy</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Detection Info -->
+            {% if detection_info %}
+            <div class="translation-meta" style="margin-bottom: 1.5rem;">
+                <div class="meta-item">
+                    <span>🔍</span>
+                    <span>Detected: <strong>{{ language_names.get(source_lang, source_lang) }}</strong></span>
+                </div>
+                <div class="meta-item">
+                    <span>🎯</span>
+                    <span>Target: <strong>{{ language_names.get(target_lang, target_lang) }}</strong></span>
+                </div>
+                <div class="meta-item">
+                    <span>📊</span>
+                    <span>Confidence: <strong>{{ detection_info.confidence }}%</strong></span>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="translation-result">
+                <div class="translation-text" id="translatedText">{{ translated_text }}</div>
+                <div class="translation-meta">
+                    <div class="meta-item">
+                        <span>📏</span>
+                        <span><strong>{{ word_count }}</strong> words</span>
+                    </div>
+                    <div class="meta-item">
+                        <span>🔤</span>
+                        <span><strong>{{ char_count }}</strong> characters</span>
+                    </div>
+                    {% if cache_hit %}
+                    <div class="meta-item">
+                        <span class="badge badge-success">⚡ From Cache</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Audio Player -->
+            {% if audio_file %}
+            <div class="audio-player">
+                <label class="form-label">🔊 Text-to-Speech</label>
+                <audio controls>
+                    <source src="{{ url_for('static', filename=audio_file) }}" type="audio/mpeg">
+                    Your browser does not support audio playback.
+                </audio>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Text Analysis -->
+        {% if analysis %}
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📊</span>
+                    <span>Advanced Text Analysis</span>
+                </div>
+            </div>
+
+            <div class="analysis-grid">
+                <div class="analysis-item">
+                    <div class="analysis-value">{{ analysis.readability }}</div>
+                    <div class="analysis-label">Readability Score</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-value">{{ analysis.sentence_count }}</div>
+                    <div class="analysis-label">Sentences</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-value">{{ analysis.avg_word_length }}</div>
+                    <div class="analysis-label">Avg Word Length</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-value">
+                        <span class="badge badge-primary">{{ analysis.complexity }}</span>
+                    </div>
+                    <div class="analysis-label">Complexity</div>
+                </div>
+                <div class="analysis-item">
+                    <div class="analysis-value">
+                        <span class="badge badge-warning">{{ analysis.text_type }}</span>
+                    </div>
+                    <div class="analysis-label">Text Type</div>
+                </div>
+            </div>
+
+            <!-- Word Frequency -->
+            {% if analysis.word_frequency %}
+            <div style="margin-top: 1.5rem;">
+                <label class="form-label">🏷️ Most Common Words</label>
+                <div class="word-cloud">
+                    {% for word, count in analysis.word_frequency %}
+                    <div class="word-tag">
+                        <span class="word-text">{{ word }}</span>
+                        <span class="word-count">{{ count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% endif %}
+
+        <!-- Translation History -->
+        {% if history %}
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📜</span>
+                    <span>Translation History</span>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-outline" onclick="exportHistory('json')">
+                        <span>📥</span>
+                        <span>Export JSON</span>
+                    </button>
+                    <button class="btn btn-outline" onclick="exportHistory('csv')">
+                        <span>📥</span>
+                        <span>Export CSV</span>
+                    </button>
+                    <button class="btn btn-danger" onclick="clearHistory()">
+                        <span>🗑️</span>
+                        <span>Clear</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Input</th>
+                            <th>Source</th>
+                            <th>Target</th>
+                            <th>Output</th>
+                            <th>Stats</th>
+                            <th>Cache</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in history[:10] %}
+                        <tr>
+                            <td>{{ item.timestamp }}</td>
+                            <td>{{ item.input }}</td>
+                            <td><span class="badge badge-primary">{{ item.source }}</span></td>
+                            <td><span class="badge badge-success">{{ item.target }}</span></td>
+                            <td>{{ item.output }}</td>
+                            <td>{{ item.words }}W / {{ item.chars }}C</td>
+                            <td>
+                                {% if item.cached %}
+                                <span class="badge badge-success">✓</span>
+                                {% else %}
+                                <span class="badge badge-warning">✗</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Most Used Language Pairs -->
+        {% if most_used_pairs %}
+        <div class="card fade-in">
+            <div class="card-header">
+                <div class="card-title">
+                    <span class="card-title-icon">📈</span>
+                    <span>Most Used Language Pairs</span>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                {% for pair, count in most_used_pairs %}
+                <div class="stat-card">
+                    <div class="stat-value">{{ count }}</div>
+                    <div class="stat-label">{{ pair.replace('_to_', ' → ') }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
-    {% endif %}
 
-    {% if history %}
-    <h4>Translation History</h4>
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Input</th>
-                <th>Source</th>
-                <th>Target</th>
-                <th>Output</th>
-                <th>Words</th>
-                <th>Chars</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in history %}
-            <tr>
-                <td>{{ item.input }}</td>
-                <td>{{ item.source }}</td>
-                <td>{{ item.target }}</td>
-                <td>{{ item.output }}</td>
-                <td>{{ item.words }}</td>
-                <td>{{ item.chars }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% endif %}
-</div>
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 0.875rem;">
+        <p>© 2026 TransLingo Pro - Advanced Language Translation Platform</p>
+        <p>Powered by Python, Flask & Deep Translator</p>
+    </footer>
 
-<script>
-function copyText() {
-    const text = document.querySelector('.card-body p:nth-child(3)').innerText;
-    navigator.clipboard.writeText(text).then(() => alert("Copied!"));
-}
-</script>
+    <!-- JavaScript -->
+    <script>
+        // Theme Toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            
+            const icon = document.getElementById('theme-icon');
+            const text = document.getElementById('theme-text');
+            
+            if (newTheme === 'dark') {
+                icon.textContent = '☀️';
+                text.textContent = 'Light Mode';
+            } else {
+                icon.textContent = '🌙';
+                text.textContent = 'Dark Mode';
+            }
+            
+            localStorage.setItem('theme', newTheme);
+        }
 
+        // Load saved theme
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                document.getElementById('theme-icon').textContent = '☀️';
+                document.getElementById('theme-text').textContent = 'Light Mode';
+            }
+        });
+
+        // Character Counter
+        function updateCharCount() {
+            const textarea = document.getElementById('inputText');
+            const counter = document.getElementById('charCounter');
+            const length = textarea.value.length;
+            counter.textContent = `${length} / 5000 characters`;
+            
+            if (length > 5000) {
+                counter.style.color = 'var(--danger-color)';
+            } else if (length > 4000) {
+                counter.style.color = 'var(--warning-color)';
+            } else {
+                counter.style.color = 'var(--text-secondary)';
+            }
+        }
+
+        // Copy Translation
+        function copyTranslation() {
+            const text = document.getElementById('translatedText').textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Translation copied to clipboard!', 'success');
+            }).catch(err => {
+                showNotification('Failed to copy text', 'error');
+            });
+        }
+
+        // Clear Form
+        function clearForm() {
+            document.getElementById('translationForm').reset();
+            updateCharCount();
+        }
+
+        // Export History
+        function exportHistory(format) {
+            window.location.href = `/export/${format}`;
+            showNotification(`Exporting history as ${format.toUpperCase()}...`, 'success');
+        }
+
+        // Clear History
+        function clearHistory() {
+            if (confirm('Are you sure you want to clear all translation history?')) {
+                fetch('/clear-history', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showNotification('History cleared successfully!', 'success');
+                        setTimeout(() => location.reload(), 1000);
+                    }
+                })
+                .catch(err => {
+                    showNotification('Failed to clear history', 'error');
+                });
+            }
+        }
+
+        // Show Notification
+        function showNotification(message, type) {
+            const alertDiv = document.createElement('div');
+            let iconAndClass;
+            
+            switch(type) {
+                case 'success':
+                    iconAndClass = {icon: '✓', class: 'alert-success'};
+                    break;
+                case 'error':
+                    iconAndClass = {icon: '⚠️', class: 'alert-danger'};
+                    break;
+                case 'warning':
+                    iconAndClass = {icon: '⚠️', class: 'alert-warning'};
+                    break;
+                case 'info':
+                    iconAndClass = {icon: 'ℹ️', class: 'alert-success'};
+                    break;
+                default:
+                    iconAndClass = {icon: 'ℹ️', class: 'alert-success'};
+            }
+            
+            alertDiv.className = `alert ${iconAndClass.class} fade-in`;
+            alertDiv.style.position = 'fixed';
+            alertDiv.style.top = '80px';
+            alertDiv.style.right = '20px';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.maxWidth = '400px';
+            alertDiv.innerHTML = `
+                <span>${iconAndClass.icon}</span>
+                <span>${message}</span>
+            `;
+            
+            document.body.appendChild(alertDiv);
+            
+            setTimeout(() => {
+                alertDiv.style.opacity = '0';
+                setTimeout(() => alertDiv.remove(), 300);
+            }, 5000);
+        }
+
+        // Form Validation
+        document.getElementById('translationForm').addEventListener('submit', function(e) {
+            const textarea = document.getElementById('inputText');
+            if (textarea.value.length > 5000) {
+                e.preventDefault();
+                showNotification('Text exceeds maximum length of 5000 characters', 'error');
+            }
+        });
+
+        // Check Connectivity
+        function checkConnectivity() {
+            showNotification('Checking connectivity...', 'info');
+            fetch('/check-connectivity')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'online') {
+                        showNotification('✓ Connection is working! You can try translating again.', 'success');
+                    } else if (data.status === 'limited') {
+                        showNotification('⚠️ Internet detected but Google Translate is unreachable. Check firewall/proxy.', 'warning');
+                    } else {
+                        showNotification('❌ No internet connection detected. Please check your network.', 'error');
+                    }
+                    updateConnectivityDisplay(data);
+                })
+                .catch(err => {
+                    showNotification('Failed to check connectivity', 'error');
+                });
+        }
+
+        // Update Connectivity Status Display
+        function updateConnectivityStatus() {
+            fetch('/check-connectivity')
+                .then(response => response.json())
+                .then(data => {
+                    updateConnectivityDisplay(data);
+                })
+                .catch(err => {
+                    console.log('Connectivity check failed:', err);
+                });
+        }
+
+        function updateConnectivityDisplay(data) {
+            const statusElement = document.getElementById('connectivityStatus');
+            if (!statusElement) return;
+            
+            if (data.status === 'online') {
+                statusElement.innerHTML = '<span class="status-indicator status-online" title="Service Online">🟢 Online</span>';
+            } else if (data.status === 'limited') {
+                statusElement.innerHTML = '<span class="status-indicator status-limited" title="Limited Connectivity">🟡 Limited</span>';
+            } else {
+                statusElement.innerHTML = '<span class="status-indicator status-offline" title="Offline">🔴 Offline</span>';
+            }
+        }
+
+        // Initialize
+        updateCharCount();
+        
+        // Check connectivity periodically (every 30 seconds)
+        setInterval(updateConnectivityStatus, 30000);
+        
+        // Initial connectivity check
+        updateConnectivityStatus();
+    </script>
 </body>
 </html>

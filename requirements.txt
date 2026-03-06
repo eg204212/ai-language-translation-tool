@@ -1,0 +1,21 @@
+# Core Framework
+Flask==2.3.3
+Werkzeug==2.3.7
+
+# Translation & Language Processing
+deep-translator==1.11.4
+langdetect==1.0.9
+
+# Text-to-Speech
+gTTS==2.3.2
+
+# Additional Dependencies
+requests==2.31.0
+click==8.1.7
+itsdangerous==2.1.2
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+
+# Optional but recommended for production
+gunicorn==21.2.0
+python-dotenv==1.0.0
